@@ -131,6 +131,25 @@ void vfdlib_setClipArea(int xLeft, int yTop, int xRight, int yBottom) {
 }
 
 /*
+FASTCLEAR
+
+Clears the entire display buffer to black.
+
+Parameters:
+ buffer - pointer to the display buffer
+
+Notes:
+ This method ignores the clip area.
+
+*/
+void vfdlib_fastclear(char *buffer) {
+
+  int i;
+  int* intBuffer = (int *) buffer;
+  for (i=0; i<(VFD_HEIGHT * VFD_BYTES_PER_SCANLINE) >> 2; i++) *(intBuffer++) = 0;
+}
+
+/*
 CLEAR
 
 Clears the area inside the clip area to a specified colour.
@@ -1823,6 +1842,11 @@ void vfdlib_drawBitmap(char *buffer, unsigned char *bitmap,
     destX = g_clipXLeft;
   }
 
+  if (sourceX < 0) {
+    destX -= sourceX;
+    sourceX = 0;
+  }
+
   /* clip top */
   if (height < 1) height = bitmapHeight;
   if (destY < g_clipYTop) {
@@ -1832,12 +1856,17 @@ void vfdlib_drawBitmap(char *buffer, unsigned char *bitmap,
     destY = g_clipYTop;
   }
 
+  if (sourceY < 0) {
+    destY -= sourceY;
+    sourceY = 0;
+  }
+
   /* clip RHS */
-  if (width > bitmapWidth) width = bitmapWidth;
+  if (sourceX + width > bitmapWidth) width = bitmapWidth - sourceX;
   if (destX + width > g_clipXRight) width = g_clipXRight - destX;
 
   /* clip bottom */
-  if (height > bitmapHeight) height = bitmapHeight;
+  if (sourceY + height > bitmapHeight) height = bitmapHeight - sourceY;
   if (destY + height > g_clipYBottom) height = g_clipYBottom - destY;
 
   if (width > 0 && height > 0) {
@@ -2264,7 +2293,7 @@ static void drawBitmap2BPP(char *buffer, char *bitmap,
 
       if (currentShade != 0 || !isTransparent) {
 	 /* set pixel */
-	if (shade >= 0) currentShade = shade;
+	if (shade >= 0 && currentShade > 0) currentShade = shade;
 	if (pixelPos == 0) {
 	  *buffer &= MASK_HI_NYBBLE;
 	  *buffer |= currentShade;

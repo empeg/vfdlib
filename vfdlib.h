@@ -84,6 +84,7 @@ drawing operation will not be drawn.
 void vfdlib_setClipArea(int xLeft, int yTop, int xRight, int yBottom);
 
 /*** CLEAR */
+void vfdlib_fastclear(char *buffer);
 void vfdlib_clear(char *buffer, char shade);
 
 /*** POINTS */

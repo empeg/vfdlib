@@ -2,13 +2,15 @@
 vfdlib - a graphics api library for empeg userland apps
 *******************************************************
 
-Version 2 - 16th June 2002
+Version 3 - 6th September 2002
 
 Copyright (C) 2002  Richard Kirkby
 
+** find the latest version at http://empeg-vfdlib.sourceforge.net **
+
 Introduction:
 
-  I recocognized a barrier to implementing userland apps on the empeg/riocar
+  I recognized a barrier to implementing userland apps on the empeg/riocar
   as being the lack of custom graphics libraries. I personally would like to
   see a lot more development, and sought to help myself and others overcome
   the initial barrier by writing my own set of graphics routines.
@@ -65,6 +67,8 @@ Credits:
 
 Revisions:
 
+  06/09/2002 v3  - added fastclear function
+                   fixed bugs in bitmap drawing routines
   16/06/2002 v2  - added support for .bf font files
                    added invert rectangle function
   29/05/2002 v1  - initial release
