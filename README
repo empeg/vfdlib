@@ -2,7 +2,7 @@
 vfdlib - a graphics api library for empeg userland apps
 *******************************************************
 
-Version 1 - 29th May 2002
+Version 2 - 16th June 2002
 
 Copyright (C) 2002  Richard Kirkby
 
@@ -23,8 +23,7 @@ Features:
   * Ability to draw points, lines, rectangles, ellipses, polygons, text and
     bitmaps.
 
-  * Includes 3 built in fonts to get you started in getting text onto the
-    display.
+  * Can use the same font files the player uses!
 
   * Drawing operations fully clipped to a user definable rectangle. Those of
     you hungry for more speed can bypass the clipping overhead when careful
@@ -56,6 +55,16 @@ Feedback:
   Even better, join in the discussions on the unofficial empeg bbs:
   http://empeg.comms.net/
 
+Credits:
+
+  Thanks go to Mourgoyiannis Spiros for helping me to decypher the .bf file
+   format.
+  Special thanks to Mark Lord for his brilliant hijack kernel.
+  Most of all, thanks to the empeg team for developing the best gadget I've 
+   ever owned.
+
 Revisions:
 
+  16/06/2002 v2  - added support for .bf font files
+                   added invert rectangle function
   29/05/2002 v1  - initial release

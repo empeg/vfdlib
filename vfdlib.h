@@ -35,10 +35,6 @@ Send comments, suggestions, bug reports to rkirkby (at) cs.waikato.ac.nz
 #define VFDSHADE_MEDIUM         2
 #define VFDSHADE_BRIGHT         3
 
-#define VFDFONT_TINY            0
-#define VFDFONT_SMALL           1
-#define VFDFONT_MEDIUM          2
-
 #define BITMAP_1BPP             0
 #define BITMAP_2BPP             1
 #define BITMAP_4BPP             2
@@ -108,7 +104,12 @@ void vfdlib_drawLineClipped(char *buffer, int x1, int y1, int x2, int y2,
 void vfdlib_drawLineUnclipped(char *buffer, int x1, int y1, int x2, int y2,
 			      char shade);
 
-/*** RECTANGLES */
+/*** RECTANGLES 
+
+The invert methods allow you to invert the pixel intensities in a rectangular
+area of the display.
+
+*/
 void vfdlib_drawOutlineRectangleClipped(char *buffer, int xLeft, int yTop,
 					int xRight, int yBottom, char shade);
 void vfdlib_drawOutlineRectangleUnclipped(char *buffer, int xLeft, int yTop,
@@ -117,6 +118,11 @@ void vfdlib_drawSolidRectangleClipped(char *buffer, int xLeft, int yTop,
 				      int xRight, int yBottom, char shade);
 void vfdlib_drawSolidRectangleUnclipped(char *buffer, int xLeft, int yTop,
 					int xWidth, int yHeight, char shade);
+void vfdlib_invertRectangleClipped(char *buffer, int xLeft, int yTop,
+				   int xRight, int yBottom);
+void vfdlib_invertRectangleUnclipped(char *buffer, int xLeft, int yTop,
+				     int xWidth, int yHeight);
+
 
 /*** ELLIPSES
 
@@ -153,20 +159,54 @@ void vfdlib_drawSolidPolygon(char *buffer, int *coordsData,
 
 /*** TEXT
 
-The font parameter allows the choice of 3 built-in fonts. Each font has
-characters in the ASCII range '!' (33) - '~' (126) inclusive.
-0: VFDFONT_TINY (capitals only, some symbols missing - 3 pixels high),
-1: VFDFONT_SMALL (4 pixels high),
-2: VFDFONT_MEDIUM (5 pixels high)
+Before fonts can be used they must be registered. To register a font you
+must give the filename of a .bf font file (the same type of files used by
+the player software).
+
+The font files used by the player software are as follows:
+
+/empeg/lib/fonts/small.bf  -  6 pixels high by  0-9 pixels wide
+/empeg/lib/fonts/medium.bf -  9 pixels high by 0-11 pixels wide
+/empeg/lib/fonts/large.bf  - 18 pixels high by 0-16 pixels wide
+
+The more fonts you use the more resources they take so only register the
+fonts you need. There are five available slots (0-4) to load with fonts.
+
+When fonts are no longer needed, you should unregister them to free up the
+memory used. The best way to ensure a nice clean up is to call
+unregisterAllFonts before your program exits.
+
+The general process of using fonts goes something like this:
+
+// at beginning of program:
+vfdlib_registerFont("/empeg/lib/fonts/small.bf", 0);
+vfdlib_registerFont("/empeg/lib/fonts/medium.bf", 1);
+
+// during program:
+vfdlib_drawText(buffer, "Small text", 0, 0, 0, -1);
+vfdlib_drawText(buffer, "Medium text", 0, vfdlib_getTextHeight(0), 1, -1);
+
+// at exit of program:
+vfdlib_unregisterAllFonts();
+
+The shade parameter to drawText behaves the same as it does for drawing
+bitmaps. As the fonts are 2BPP, it is best to use -1 for this parameter
+to retain the anti-aliased look of the fonts.
 
 The get functions allow you to measure the pixel size required to display a
-string.
+string. The getStringIndexOfCutoffWidth function allows you to determine
+which character within a string will be cut off within limited horizontal
+space.
 
 */
+int vfdlib_registerFont(char *bfFileName, int fontSlot);
+void vfdlib_unregisterFont(int fontSlot);
+void vfdlib_unregisterAllFonts();
+int vfdlib_getTextHeight(int fontSlot);
+int vfdlib_getTextWidth(char *string, int fontSlot);
+int vfdlib_getStringIndexOfCutoffWidth(char *string, int fontSlot, int width);
 void vfdlib_drawText(char *buffer, char *string, int xLeft, int yTop,
-		     int font, char shade);
-int vfdlib_getTextHeight(int font);
-int vfdlib_getTextWidth(char *string, int font);
+		     int fontSlot, char shade);
 
 /*** BITMAPS
 

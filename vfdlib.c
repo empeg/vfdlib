@@ -21,153 +21,29 @@ Send comments, suggestions, bug reports to rkirkby (at) cs.waikato.ac.nz
 
 */
 
-#include <stdlib.h> /* needed for malloc/free in drawSolidPolygon */
+#include <stdlib.h>
+#include <stdio.h>
 #include "vfdlib.h"
 
 #define MASK_LO_NYBBLE   0x0F
 #define MASK_HI_NYBBLE   0xF0
 
 
-/* built-in fonts */
+/* font info */
+
+#define NUM_FONT_SLOTS   5
 
 typedef struct {
   short offset;
   char width;
+} CharInfo;
+
+typedef struct {
+  CharInfo *cInfo;
+  unsigned char *fBitmap;
+  int firstIndex;
+  int numOfChars;
 } FontInfo;
-
-static unsigned char tinyFontBitmap[] = {
-  BITMAP_1BPP, 0, 180, 0, 3,
-  0xF9, 0xEF, 0xF5, 0xFB, 0x6F, 0x7F, 0xB3, 0xF6, 0xD6, 0xDC, 0xB6,
-  0xD5, 0xDA, 0xF6, 0x4E, 0xD5, 0x40, 0x35, 0xEE, 0xDC, 0xD1, 0x7C,
-  0x80, 0xFE, 0x5D, 0xAF, 0xAD, 0x56, 0xDE, 0xB2, 0x56, 0xD5, 0x75,
-  0x52, 0x7D, 0x6F, 0xE0, 0x9D, 0x2E, 0xEE, 0x42, 0x17, 0x72, 0x68,
-  0xD7, 0x50, 0xBD, 0xEF, 0x3D, 0xEB, 0xD6, 0xFB, 0xEE, 0x4D, 0x6E,
-  0xA6, 0xBB, 0xC6, 0x6F, 0x41, 0x28, 0xD5, 0x51, 0x9D, 0xE4, 0xF9,
-  0xC6, 0x7C, 0x20
-};
-
-static FontInfo tinyFontInfo[] = {
-  {106, 1}, /* ! */ {107, 3}, /* " */ {  0, 0}, /* # */ {  0, 0}, /* $ */
-  {110, 5}, /* % */ {115, 3}, /* & */ {118, 1}, /* ' */ {119, 2}, /* ( */
-  {121, 2}, /* ) */ {123, 5}, /* * */ {128, 3}, /* + */ {131, 2}, /* , */
-  {133, 2}, /* - */ {135, 1}, /* . */ {136, 3}, /* / */ { 79, 3}, /* 0 */
-  { 82, 3}, /* 1 */ { 85, 3}, /* 2 */ { 88, 3}, /* 3 */ { 91, 3}, /* 4 */
-  { 94, 3}, /* 5 */ { 97, 2}, /* 6 */ { 99, 2}, /* 7 */ {101, 3}, /* 8 */
-  {104, 2}, /* 9 */ {139, 1}, /* : */ {140, 2}, /* ; */ {142, 2}, /* < */
-  {144, 2}, /* = */ {146, 2}, /* > */ {148, 3}, /* ? */ {151, 4}, /* @ */
-  {  0, 3}, /* A */ {  3, 3}, /* B */ {  6, 3}, /* C */ {  9, 3}, /* D */
-  { 12, 3}, /* E */ { 15, 3}, /* F */ { 18, 3}, /* G */ { 21, 3}, /* H */
-  { 24, 1}, /* I */ { 25, 3}, /* J */ { 28, 3}, /* K */ { 31, 2}, /* L */
-  { 33, 5}, /* M */ { 38, 3}, /* N */ { 41, 3}, /* O */ { 44, 2}, /* P */
-  { 46, 4}, /* Q */ { 50, 3}, /* R */ { 53, 3}, /* S */ { 56, 3}, /* T */
-  { 59, 3}, /* U */ { 62, 3}, /* V */ { 65, 5}, /* W */ { 70, 3}, /* X */
-  { 73, 3}, /* Y */ { 76, 3}, /* Z */ {155, 2}, /* [ */ {157, 3}, /* \ */
-  {160, 2}, /* ] */ {162, 3}, /* ^ */ {165, 2}, /* _ */ {167, 1}, /* ` */
-  {  0, 3}, /* a */ {  3, 3}, /* b */ {  6, 3}, /* c */ {  9, 3}, /* d */
-  { 12, 3}, /* e */ { 15, 3}, /* f */ { 18, 3}, /* g */ { 21, 3}, /* h */
-  { 24, 1}, /* i */ { 25, 3}, /* j */ { 28, 3}, /* k */ { 31, 2}, /* l */
-  { 33, 5}, /* m */ { 38, 3}, /* n */ { 41, 3}, /* o */ { 44, 2}, /* p */
-  { 46, 4}, /* q */ { 50, 3}, /* r */ { 53, 3}, /* s */ { 56, 3}, /* t */
-  { 59, 3}, /* u */ { 62, 3}, /* v */ { 65, 5}, /* w */ { 70, 3}, /* x */
-  { 73, 3}, /* y */ { 76, 3}, /* z */ {168, 3}, /* { */ {171, 1}, /* | */
-  {172, 3}, /* } */ {175, 5}  /* ~ */
-};
-
-static unsigned char smallFontBitmap[] = {
-  BITMAP_1BPP, 0, 252, 0, 5,
-  0x59, 0xDE, 0xAF, 0xB7, 0xB2, 0xCB, 0x7E, 0xDA, 0xDB, 0x88, 0x10,
-  0x92, 0xC8, 0x00, 0x00, 0x08, 0x00, 0x00, 0x3A, 0xBB, 0xBF, 0xFE,
-  0xA9, 0xC9, 0xD8, 0x00, 0x01, 0x27, 0x0C, 0x60, 0xBE, 0x00, 0xBE,
-  0xBD, 0x3D, 0xD5, 0x6D, 0xB6, 0xCA, 0xDA, 0xAE, 0xBC, 0xBD, 0x78,
-  0xDB, 0xD9, 0x7B, 0x7E, 0xDA, 0xDB, 0xAE, 0x7B, 0x43, 0xFC, 0x7F,
-  0x12, 0xA6, 0xA0, 0x3A, 0xD1, 0x6A, 0x28, 0xAA, 0xD0, 0xF6, 0xB7,
-  0x6D, 0xB5, 0x6D, 0xD7, 0x2A, 0xAA, 0xD5, 0x5B, 0x5D, 0xF6, 0xEA,
-  0xB6, 0xFA, 0x4A, 0xDA, 0xA6, 0xAA, 0x9E, 0xF5, 0x48, 0x7D, 0xA7,
-  0x25, 0x76, 0x44, 0x0A, 0xD9, 0x34, 0x49, 0xB0, 0xBD, 0xDC, 0xEE,
-  0xBD, 0x6A, 0x8E, 0xE9, 0xAF, 0x55, 0xFC, 0xB7, 0x37, 0x56, 0xB5,
-  0x4E, 0xC5, 0xAF, 0x52, 0xFF, 0xF3, 0x75, 0xF4, 0x2B, 0xCA, 0x26,
-  0xA9, 0x9A, 0xD0, 0xB8, 0xA0, 0x2A, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x48,
-  0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x18, 0x08,
-  0x09, 0x22, 0x7C, 0x63, 0x3E, 0x00
-};
-
-static FontInfo smallFontInfo[] = {
-  {173, 1}, /* ! */ {174, 3}, /* " */ {177, 5}, /* # */ {182, 3}, /* $ */
-  {185, 4}, /* % */ {189, 4}, /* & */ {193, 1}, /* ' */ {194, 2}, /* ( */
-  {196, 2}, /* ) */ {198, 3}, /* * */ {201, 3}, /* + */ {204, 1}, /* , */
-  {205, 2}, /* - */ {207, 1}, /* . */ {208, 3}, /* / */ {146, 3}, /* 0 */
-  {149, 3}, /* 1 */ {152, 2}, /* 2 */ {154, 2}, /* 3 */ {156, 3}, /* 4 */
-  {159, 2}, /* 5 */ {161, 3}, /* 6 */ {164, 3}, /* 7 */ {167, 3}, /* 8 */
-  {170, 3}, /* 9 */ {211, 1}, /* : */ {212, 1}, /* ; */ {213, 3}, /* < */
-  {216, 2}, /* = */ {218, 3}, /* > */ {221, 3}, /* ? */ {224, 4}, /* @ */
-  {  0, 3}, /* A */ {  3, 3}, /* B */ {  6, 2}, /* C */ {  8, 3}, /* D */
-  { 11, 2}, /* E */ { 13, 2}, /* F */ { 15, 3}, /* G */ { 18, 3}, /* H */
-  { 21, 1}, /* I */ { 22, 2}, /* J */ { 24, 3}, /* K */ { 27, 2}, /* L */
-  { 29, 5}, /* M */ { 34, 3}, /* N */ { 37, 3}, /* O */ { 40, 3}, /* P */
-  { 43, 3}, /* Q */ { 46, 3}, /* R */ { 49, 2}, /* S */ { 51, 3}, /* T */
-  { 54, 3}, /* U */ { 57, 3}, /* V */ { 60, 5}, /* W */ { 65, 3}, /* X */
-  { 68, 3}, /* Y */ { 71, 2}, /* Z */ {228, 2}, /* [ */ {230, 3}, /* \ */
-  {233, 2}, /* ] */ {235, 3}, /* ^ */ {238, 2}, /* _ */ {240, 1}, /* ` */
-  { 73, 3}, /* a */ { 76, 3}, /* b */ { 79, 2}, /* c */ { 81, 3}, /* d */
-  { 84, 3}, /* e */ { 87, 2}, /* f */ { 89, 2}, /* g */ { 91, 3}, /* h */
-  { 94, 1}, /* i */ { 95, 2}, /* j */ { 97, 3}, /* k */ {100, 2}, /* l */
-  {102, 5}, /* m */ {107, 3}, /* n */ {110, 3}, /* o */ {113, 2}, /* p */
-  {115, 3}, /* q */ {118, 2}, /* r */ {120, 3}, /* s */ {123, 3}, /* t */
-  {126, 3}, /* u */ {129, 3}, /* v */ {132, 5}, /* w */ {137, 3}, /* x */
-  {140, 3}, /* y */ {143, 3}, /* z */ {241, 3}, /* { */ {244, 1}, /* | */
-  {245, 3}, /* } */ {248, 4}  /* ~ */
-};
-
-static unsigned char mediumFontBitmap[] = {
-  BITMAP_1BPP, 1, 10, 0, 6,
-  0x59, 0xDE, 0xAD, 0xB7, 0xB2, 0xCB, 0x7E, 0xDA, 0xDB, 0x88, 0x10,
-  0x89, 0x64, 0x00, 0x00, 0x04, 0x00, 0x00, 0x12, 0xAB, 0xBD, 0x2D,
-  0x52, 0x04, 0x99, 0x50, 0x00, 0x04, 0x98, 0xCC, 0x30, 0x13, 0xE0,
-  0x00, 0xB6, 0xB5, 0x2D, 0xB5, 0x6D, 0xB6, 0xCA, 0xDA, 0xDA, 0xBC,
-  0xB7, 0x3C, 0x6D, 0xEC, 0xB3, 0x7F, 0x6D, 0x6D, 0xEE, 0x5B, 0x46,
-  0xDD, 0xFF, 0x9A, 0xA4, 0xE4, 0x01, 0xAB, 0x45, 0x2A, 0x12, 0x0A,
-  0xA6, 0x80, 0xFA, 0xBF, 0x3D, 0xD5, 0x6D, 0xD7, 0x2A, 0xDA, 0xAF,
-  0x5B, 0x5B, 0xDB, 0x75, 0x5B, 0x6D, 0x55, 0x6D, 0x55, 0x6A, 0x6E,
-  0xF9, 0x38, 0x56, 0x24, 0x43, 0xFE, 0x62, 0x10, 0x3A, 0xD9, 0x15,
-  0x04, 0x9B, 0x00, 0xB6, 0xB5, 0x6D, 0xB5, 0x6D, 0x96, 0xAA, 0xDA,
-  0xD5, 0x5B, 0x5D, 0x7B, 0x6D, 0x5B, 0x77, 0x4D, 0x55, 0x6B, 0xAA,
-  0x92, 0xDA, 0x90, 0xFB, 0x4A, 0x42, 0xE4, 0x04, 0x0B, 0x53, 0x58,
-  0x98, 0x82, 0xA0, 0x00, 0xB9, 0xDC, 0xEE, 0xBD, 0x6A, 0x8E, 0xE9,
-  0xAF, 0x55, 0xFC, 0xB7, 0x1B, 0x6B, 0x5A, 0xA1, 0xDA, 0xD7, 0xA9,
-  0xD7, 0xE3, 0x3B, 0xE8, 0x57, 0x9F, 0x25, 0x50, 0x98, 0xA4, 0x81,
-  0xE8, 0x50, 0x03, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x80, 0x00, 0x21, 0x00, 0x00,
-  0x06, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x18, 0x01, 0x00, 0x40,
-  0x10, 0xCC, 0x30, 0x60, 0x80, 0x00
-};
-
-static FontInfo mediumFontInfo[] = {
-  {172, 1}, /* ! */ {173, 3}, /* " */ {176, 5}, /* # */ {181, 3}, /* $ */
-  {184, 4}, /* % */ {188, 4}, /* & */ {192, 1}, /* ' */ {193, 3}, /* ( */
-  {196, 3}, /* ) */ {199, 5}, /* * */ {204, 3}, /* + */ {207, 2}, /* , */
-  {209, 2}, /* - */ {211, 1}, /* . */ {212, 4}, /* / */ {146, 3}, /* 0 */
-  {149, 3}, /* 1 */ {152, 2}, /* 2 */ {154, 2}, /* 3 */ {156, 3}, /* 4 */
-  {159, 2}, /* 5 */ {161, 3}, /* 6 */ {164, 2}, /* 7 */ {166, 3}, /* 8 */
-  {169, 3}, /* 9 */ {216, 1}, /* : */ {217, 2}, /* ; */ {219, 3}, /* < */
-  {222, 2}, /* = */ {224, 3}, /* > */ {227, 3}, /* ? */ {230, 6}, /* @ */
-  {  0, 3}, /* A */ {  3, 3}, /* B */ {  6, 2}, /* C */ {  8, 3}, /* D */
-  { 11, 2}, /* E */ { 13, 2}, /* F */ { 15, 3}, /* G */ { 18, 3}, /* H */
-  { 21, 1}, /* I */ { 22, 2}, /* J */ { 24, 3}, /* K */ { 27, 2}, /* L */
-  { 29, 5}, /* M */ { 34, 3}, /* N */ { 37, 3}, /* O */ { 40, 3}, /* P */
-  { 43, 3}, /* Q */ { 46, 3}, /* R */ { 49, 2}, /* S */ { 51, 3}, /* T */
-  { 54, 3}, /* U */ { 57, 3}, /* V */ { 60, 5}, /* W */ { 65, 3}, /* X */
-  { 68, 3}, /* Y */ { 71, 2}, /* Z */ {236, 2}, /* [ */ {238, 4}, /* \ */
-  {242, 2}, /* ] */ {244, 5}, /* ^ */ {249, 2}, /* _ */ {251, 2}, /* ` */
-  { 73, 3}, /* a */ { 76, 3}, /* b */ { 79, 2}, /* c */ { 81, 3}, /* d */
-  { 84, 3}, /* e */ { 87, 2}, /* f */ { 89, 3}, /* g */ { 92, 3}, /* h */
-  { 95, 1}, /* i */ { 96, 2}, /* j */ { 98, 3}, /* k */ {101, 2}, /* l */
-  {103, 5}, /* m */ {108, 3}, /* n */ {111, 3}, /* o */ {114, 3}, /* p */
-  {117, 4}, /* q */ {121, 2}, /* r */ {123, 2}, /* s */ {125, 2}, /* t */
-  {127, 3}, /* u */ {130, 3}, /* v */ {133, 5}, /* w */ {138, 3}, /* x */
-  {141, 3}, /* y */ {144, 2}, /* z */ {253, 3}, /* { */ {256, 1}, /* | */
-  {257, 3}, /* } */ {260, 5}  /* ~ */
-};
 
 
 /* global variables */
@@ -176,11 +52,17 @@ static int g_clipXLeft = 0;
 static int g_clipYTop = 0;
 static int g_clipXRight = VFD_WIDTH;
 static int g_clipYBottom = VFD_HEIGHT;
+static FontInfo g_fontRegistry[NUM_FONT_SLOTS] = {
+  {NULL, NULL, 0, 0},
+  {NULL, NULL, 0, 0},
+  {NULL, NULL, 0, 0},
+  {NULL, NULL, 0, 0},
+  {NULL, NULL, 0, 0}
+};
 
 
 /* private utility prototypes */
 
-static void getFontInfo(int font, FontInfo **fInfo, unsigned char **fBitmap);
 static void drawPixel4WaySymmetricClipped(char *buffer, int cX, int cY,
 					  int x, int y, char shade);
 static void drawPixel4WaySymmetricUnclipped(char *buffer, int cX, int cY,
@@ -804,6 +686,100 @@ void vfdlib_drawSolidRectangleUnclipped(char *buffer, int xLeft, int yTop,
 	  buffer++;
     }
 
+    lineStart += VFD_BYTES_PER_SCANLINE;
+  }
+}
+
+/*
+INVERTRECTANGLECLIPPED
+
+Inverts a (clipped) solid rectangle in the display buffer.
+
+Parameters:
+ buffer - pointer to the display buffer
+ xLeft - the x-coordinate of the lefthand side of the rectangle
+ yTop - the y-coordinate of the top of the rectangle
+ xRight - the x-coordinate of the righthand side of the rectangle
+ yBottom - the y-coordinate of the bottom of the rectangle
+
+Notes:
+ This method is clipped so that any pixels falling outside the clip area will
+ not be affected.
+
+*/
+void vfdlib_invertRectangleClipped(char *buffer, int xLeft, int yTop,
+				   int xRight, int yBottom)
+{
+
+  int width, height;
+  if (xLeft < g_clipXLeft) xLeft = g_clipXLeft;
+  if (yTop < g_clipYTop) yTop = g_clipYTop;
+  if (xRight > g_clipXRight) xRight = g_clipXRight;
+  if (yBottom > g_clipYBottom) yBottom = g_clipYBottom;
+  width = xRight - xLeft;
+  height = yBottom - yTop;
+  if (width < 1 || height < 1) return;
+  vfdlib_invertRectangleUnclipped(buffer, xLeft, yTop, width, height);
+}
+
+/*
+INVERTRECTANGLEUNCLIPPED
+
+Inverts a solid rectangle in the display buffer.
+
+Parameters:
+ buffer - pointer to the display buffer
+ xLeft - the x-coordinate of the lefthand side of the rectangle
+ yTop - the y-coordinate of the top of the rectangle
+ xWidth - the width of the rectangle
+ yHeight - the height of the rectangle
+
+Notes:
+ This method is unclipped for speed, but if any pixels fall outside the
+ display there will be adverse effects.
+
+*/
+void vfdlib_invertRectangleUnclipped(char *buffer, int xLeft, int yTop,
+				     int xWidth, int yHeight)
+{
+
+  int widthRemaining, pixelPos;
+  char *lineStart, oldShade, invertShade;
+  static char invertTable[] = {VFDSHADE_BRIGHT, VFDSHADE_MEDIUM,
+			       VFDSHADE_DIM, VFDSHADE_BLACK};
+  lineStart = buffer + (yTop << 6) + (xLeft >> 1);
+  
+  while (yHeight-- > 0) {
+    
+    buffer = lineStart;
+    widthRemaining = xWidth;
+    pixelPos = xLeft & 0x1;
+
+    while (widthRemaining > 0) {
+      if (pixelPos == 0) {
+	oldShade = *buffer & MASK_LO_NYBBLE;
+
+	/* determine inverted colour */
+	invertShade = invertTable[oldShade];
+
+	*buffer &= MASK_HI_NYBBLE;
+	*buffer |= invertShade;
+      } else {
+	oldShade = (*buffer & MASK_HI_NYBBLE) >> 4;
+	
+	/* determine inverted colour */
+	invertShade = invertTable[oldShade];
+	
+	*buffer &= MASK_LO_NYBBLE;
+	*buffer |= invertShade << 4;
+      }
+        
+      if (++pixelPos > 1) {
+	buffer++;
+	pixelPos = 0;
+      }      
+      widthRemaining--;
+    }
     lineStart += VFD_BYTES_PER_SCANLINE;
   }
 }
@@ -1490,6 +1466,179 @@ void vfdlib_drawSolidPolygon(char *buffer, int *coordsData, int numPoints,
 }
 
 /*
+REGISTERFONT
+
+Loads a font into one of the 5 available slots so that it may be used
+to draw text.
+
+Parameters:
+ bfFileName - the name of a file in the same format as used by the player
+              software
+ fontSlot - the slot number (0-4) to load the font into
+
+Returns:
+  0 on success
+ -1 if the file could not be read successfully
+ -2 if the font slot is not valid
+
+Notes:
+ It is safe to register over the top of another font, as the previously
+ registered font will be unregistered first.
+
+*/
+int vfdlib_registerFont(char *bfFileName, int fontSlot) {
+
+  static struct {
+    char identifierString[4]; /* always reads 'EFNT' */
+    int fileSize;
+    int unknown1;             /* always == 1. version perhaps? */
+    int maxWidth;
+    int unknown2;             /* always == 32. bits per scanline perhaps? */
+    int height;
+    int firstIndex;
+    int numOfCharacters;
+  } bfHeader;
+
+  int i, x, y, width, scanline, totalWidth = 0;
+  int bitmapScanlineBytes, scanLineSkip, fBitmapSize;
+  FILE *fp;
+  unsigned char *fBitmap;
+  CharInfo *cInfo;
+
+  if (fontSlot < 0 || fontSlot >= NUM_FONT_SLOTS) return -2; /* invalid slot */
+
+  /* unregister any existing font information */
+  vfdlib_unregisterFont(fontSlot);
+
+  if ((fp = fopen(bfFileName,"rb")) == NULL) {
+    /* unable to open the file */ 
+    return -1;
+  }
+
+  if (fread(&bfHeader, 1, sizeof(bfHeader), fp) < 1) {
+    /* error reading header */
+    fclose(fp);
+    return -1;
+  }
+
+  /* check header for valid file */
+  /* is correct identifier? */
+  if (bfHeader.identifierString[0] != 'E' ||
+      bfHeader.identifierString[1] != 'F' ||
+      bfHeader.identifierString[2] != 'N' ||
+      bfHeader.identifierString[3] != 'T') {
+
+    /* file not recognised */
+    fclose(fp);
+    return -1;
+  }
+  
+  /* allocate memory for charInfo */
+  cInfo = (CharInfo *) malloc(sizeof(CharInfo) * bfHeader.numOfCharacters);
+
+  for (i=0; i<bfHeader.numOfCharacters; i++) {
+    fseek(fp, sizeof(bfHeader) + (4 * (bfHeader.height+1) * i), SEEK_SET);
+    if (fread(&width, 1, sizeof(width), fp) < 1) {
+      /* error reading width */
+      free(cInfo);
+      fclose(fp);
+      return -1;
+    }
+    cInfo[i].offset = totalWidth;
+    cInfo[i].width = width;
+    totalWidth += width;
+  }
+
+  /* allocate memory for fontBitmap */
+  bitmapScanlineBytes = ((totalWidth-1) >> 2) + 1;
+  fBitmapSize = 5 + (bitmapScanlineBytes * bfHeader.height);
+  fBitmap = (unsigned char *) malloc(fBitmapSize);
+  for (i=0; i<fBitmapSize; i++) fBitmap[i] = 0; /* clear memory */
+
+  fBitmap[0] = BITMAP_2BPP;
+  fBitmap[1] = totalWidth >> 8;
+  fBitmap[2] = totalWidth & 0xFF;
+  fBitmap[3] = bfHeader.height >> 8;
+  fBitmap[4] = bfHeader.height & 0xFF;
+
+  /* load in the character bitmaps */
+  for (i=0; i<bfHeader.numOfCharacters; i++) {
+    fseek(fp, sizeof(bfHeader) + (((bfHeader.height+1) << 2) * i) + 4,
+	  SEEK_SET);
+    scanLineSkip = 0;
+    for (y=0; y<bfHeader.height; y++) {
+      if (fread(&scanline, 1, sizeof(scanline), fp) < 1) {
+	/* error reading scanline */
+	free(cInfo);
+	free(fBitmap);
+	fclose(fp);
+	return -1;
+      }
+      for (x=0; x<cInfo[i].width; x++) {
+	/* convert scanline to internal format */
+	*(fBitmap + 5 + scanLineSkip + ((cInfo[i].offset + x) >> 2)) |=
+	  (((unsigned char) scanline & 0x03) <<
+	   (((cInfo[i].offset + x) & 0x03) << 1));
+	scanline >>= 2;
+      }
+      scanLineSkip += bitmapScanlineBytes;
+    }
+  }
+
+  /* add font to registry */
+  g_fontRegistry[fontSlot].cInfo = cInfo;
+  g_fontRegistry[fontSlot].fBitmap = fBitmap;
+  g_fontRegistry[fontSlot].firstIndex = bfHeader.firstIndex;  
+  g_fontRegistry[fontSlot].numOfChars = bfHeader.numOfCharacters;
+  
+  fclose(fp);
+  return 0; /* success */
+}
+
+/*
+UNREGISTERFONT
+
+Frees up resources for a font that is no longer needed.
+
+Parameters:
+ fontSlot - the slot number of a font that has been registered 
+
+Notes:
+ There are no adverse effects if you try to unregister a slot that has not
+ been registered.
+
+*/
+void vfdlib_unregisterFont(int fontSlot) {
+
+  if (fontSlot < 0 || fontSlot >= NUM_FONT_SLOTS) return; /* invalid slot */
+  if (g_fontRegistry[fontSlot].cInfo != NULL) {
+    free(g_fontRegistry[fontSlot].cInfo);
+    g_fontRegistry[fontSlot].cInfo = NULL;
+  }
+  if (g_fontRegistry[fontSlot].fBitmap != NULL) {
+    free(g_fontRegistry[fontSlot].fBitmap);
+    g_fontRegistry[fontSlot].fBitmap = NULL;
+  }
+  g_fontRegistry[fontSlot].firstIndex =
+    g_fontRegistry[fontSlot].numOfChars = 0; 
+}
+
+/*
+UNREGISTERALLFONTS
+
+Frees up resources used by all of the fonts.
+
+Notes:
+ It is advisable to call this function before your program exits.
+
+*/
+void vfdlib_unregisterAllFonts() {
+
+  int i;
+  for (i=0; i<NUM_FONT_SLOTS; i++) vfdlib_unregisterFont(i);
+}
+
+/*
 DRAWTEXT
 
 Draws a (clipped) string of text in the display buffer.
@@ -1499,38 +1648,36 @@ Parameters:
  string - the string of text to display
  xLeft - the x left-hand position of the string
  yTop - the y topmost position of the string
- font - the built-in font to use; VFDFONT_TINY, VFDFONT_SMALL or
-        VFDFONT_MEDIUM 
- shade - the shade to draw with, either VFDSHADE_BLACK, VFDSHADE_DIM,
-         VFDSHADE_MEDIUM or VFDSHADE_BRIGHT
+ fontSlot - the slot number of a font that has been registered
+ shade - the shade to draw with, or -1 to retain original shades
 
 Notes:
  This method is clipped so that any pixels falling outside the clip area will
  not be affected.
- Each font has characters in the ASCII range '!' (33) - '~' (126) inclusive.
- 0: VFDFONT_TINY (capitals only, some symbols missing - 3 pixels high)
- 1: VFDFONT_SMALL (4 pixels high)
- 2: VFDFONT_MEDIUM (5 pixels high)
+
  Use the get functions to determine the pixel size required for a string.
+
 */
 void vfdlib_drawText(char *buffer, char *string, int xLeft, int yTop,
-		     int font, char shade) {
+		     int fontSlot, char shade) {
 
-  FontInfo *fInfo;
-  unsigned char *fBitmap;
+  int charIndex;
 
-  getFontInfo(font, &fInfo, &fBitmap);
+  /* check for valid slot */
+  if (fontSlot < 0 || fontSlot >= NUM_FONT_SLOTS ||
+      g_fontRegistry[fontSlot].cInfo == NULL)
+    return;
 
   while (*string != '\0' && xLeft < g_clipXRight) {
-    if (*string >= '!' && *string <= '~') {
-      FontInfo ci = fInfo[*string-'!'];
-      if (ci.width > 0) {
-	vfdlib_drawBitmap(buffer, fBitmap, xLeft, yTop, ci.offset, 0,
+    charIndex = ((unsigned char)*string)-g_fontRegistry[fontSlot].firstIndex;
+    if (charIndex >= 0 && charIndex < g_fontRegistry[fontSlot].numOfChars) {
+      CharInfo ci = g_fontRegistry[fontSlot].cInfo[charIndex];
+      if (ci.width > 0) { 
+	vfdlib_drawBitmap(buffer, g_fontRegistry[fontSlot].fBitmap,
+			  xLeft, yTop, ci.offset, 0,
 			  ci.width, -1, shade, 1);
       }
-      xLeft += ci.width + 1;
-    } else {
-      xLeft++;
+      xLeft += ci.width;
     }
     string++;
   }
@@ -1542,16 +1689,19 @@ GETTEXTHEIGHT
 Gets the pixel height of a string.
 
 Parameters:
- font - the built-in font to be used; VFDFONT_TINY, VFDFONT_SMALL or
-        VFDFONT_MEDIUM 
+ fontSlot - the slot number of a font that has been registered
 
 */
-int vfdlib_getTextHeight(int font) {
+int vfdlib_getTextHeight(int fontSlot) {
 
-  FontInfo *fInfo;
   unsigned char *fBitmap;
 
-  getFontInfo(font, &fInfo, &fBitmap);
+  /* check for valid slot */
+  if (fontSlot < 0 || fontSlot >= NUM_FONT_SLOTS ||
+      g_fontRegistry[fontSlot].cInfo == NULL)
+    return 0;
+
+  fBitmap = g_fontRegistry[fontSlot].fBitmap;
 
   return ((int) fBitmap[4] | ((int) fBitmap[3] << 8));
 }
@@ -1563,29 +1713,67 @@ Gets the pixel width of a string.
 
 Parameters:
  string - the string of text to be displayed
- font - the built-in font to be used; VFDFONT_TINY, VFDFONT_SMALL or
-        VFDFONT_MEDIUM 
+ fontSlot - the slot number of a font that has been registered 
 
 */
-int vfdlib_getTextWidth(char *string, int font) {
+int vfdlib_getTextWidth(char *string, int fontSlot) {
 
-  int width = 0;
-  FontInfo *fInfo;
-  unsigned char *fBitmap;
+  int charIndex, width = 0;
 
-  getFontInfo(font, &fInfo, &fBitmap);
+  /* check for valid slot */
+  if (fontSlot < 0 || fontSlot >= NUM_FONT_SLOTS ||
+      g_fontRegistry[fontSlot].cInfo == NULL)
+    return 0;
 
   while (*string != '\0') {
-    if (*string >= '!' && *string <= '~') {
-      FontInfo ci = fInfo[*string-'!'];
-      width += ci.width + 1;
-    } else {
-      width++;
+    charIndex = ((unsigned char)*string)-g_fontRegistry[fontSlot].firstIndex;
+    if (charIndex >= 0 && charIndex < g_fontRegistry[fontSlot].numOfChars) {
+      CharInfo ci = g_fontRegistry[fontSlot].cInfo[charIndex];
+      width += ci.width;
     }
     string++;
   }
 
   return width;
+}
+
+/*
+GETSTRINGINDEXOFCUTOFFWIDTH
+
+Gets the index of the character within a string that will be cut off if
+the space available for displaying the string were only _width_ pixels.
+
+Parameters:
+ string - the string of text to be displayed
+ fontSlot - the slot number of a font that has been registered
+ width - the available horizontal space for displaying the string
+
+Returns:
+ The index of the character that will be cut off. If the string will not be
+ cut it will be the index of the termination character (\0).
+
+*/
+int vfdlib_getStringIndexOfCutoffWidth(char *string, int fontSlot, int width) {
+
+  int charIndex, currWidth = 0, index = 0;
+  
+  /* check for valid slot */
+  if (fontSlot < 0 || fontSlot >= NUM_FONT_SLOTS ||
+      g_fontRegistry[fontSlot].cInfo == NULL)
+    return 0;
+
+  while (*string != '\0') {
+    charIndex = ((unsigned char)*string)-g_fontRegistry[fontSlot].firstIndex;
+    if (charIndex >= 0 && charIndex < g_fontRegistry[fontSlot].numOfChars) {
+      CharInfo ci = g_fontRegistry[fontSlot].cInfo[charIndex];
+      currWidth += ci.width;
+      if (currWidth > width) return index; /* found cutoff character */
+    }
+    string++;
+    index++;
+  }
+  
+  return index;
 }
 
 /*
@@ -1672,24 +1860,6 @@ void vfdlib_drawBitmap(char *buffer, unsigned char *bitmap,
 
 
 /* private utility functions */
-
-static void getFontInfo(int font, FontInfo **fInfo, unsigned char **fBitmap) {
-
-  switch (font) {
-  case VFDFONT_TINY:
-    *fInfo = tinyFontInfo;
-    *fBitmap = tinyFontBitmap;
-    break;
-  case VFDFONT_SMALL:
-    *fInfo = smallFontInfo;
-    *fBitmap = smallFontBitmap;
-    break;
-  default: /* VFDFONT_MEDIUM */
-    *fInfo = mediumFontInfo;
-    *fBitmap = mediumFontBitmap;
-    break;
-  }
-} 
 
 static void drawPixel4WaySymmetricClipped(char *buffer, int cX, int cY,
 					  int x, int y, char shade) {
