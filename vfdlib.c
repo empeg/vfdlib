@@ -1510,19 +1510,24 @@ int vfdlib_registerFont(char *bfFileName, int fontSlot) {
   static struct {
     char identifierString[4]; /* always reads 'EFNT' */
     int fileSize;
-    int unknown1;             /* always == 1. version perhaps? */
+    int version;             
     int maxWidth;
-    int unknown2;             /* always == 32. bits per scanline perhaps? */
+    int unknown;             /* always == 32. bits per scanline perhaps? */
     int height;
     int firstIndex;
-    int numOfCharacters;
+    int numOfCharacters;     /* actually, size of the array */
   } bfHeader;
+  static struct {
+    int numactual;            /* no clue, just guessing */
+    int offset;              /* where specially encoded chars start */
+  } bfHeader2;
 
-  int i, x, y, width, scanline, totalWidth = 0;
+  int i, j, x, y, width, scanline, totalWidth = 0, totalChars = 0;
   int bitmapScanlineBytes, scanLineSkip, fBitmapSize;
   FILE *fp;
   unsigned char *fBitmap;
   CharInfo *cInfo;
+  unsigned short *cOffset;
 
   if (fontSlot < 0 || fontSlot >= NUM_FONT_SLOTS) return -2; /* invalid slot */
 
@@ -1540,6 +1545,17 @@ int vfdlib_registerFont(char *bfFileName, int fontSlot) {
     return -1;
   }
 
+  totalChars = bfHeader.numOfCharacters;
+
+  if (bfHeader.version == 2) {
+    if (fread(&bfHeader2, 1, sizeof(bfHeader2), fp) < 1) {
+      /* error reading header */
+      fclose(fp);
+      return -1;
+    }
+    totalChars = bfHeader2.numactual;
+  }
+
   /* check header for valid file */
   /* is correct identifier? */
   if (bfHeader.identifierString[0] != 'E' ||
@@ -1551,20 +1567,35 @@ int vfdlib_registerFont(char *bfFileName, int fontSlot) {
     fclose(fp);
     return -1;
   }
-  
-  /* allocate memory for charInfo */
-  cInfo = (CharInfo *) malloc(sizeof(CharInfo) * bfHeader.numOfCharacters);
 
-  for (i=0; i<bfHeader.numOfCharacters; i++) {
-    fseek(fp, sizeof(bfHeader) + (4 * (bfHeader.height+1) * i), SEEK_SET);
-    if (fread(&width, 1, sizeof(width), fp) < 1) {
-      /* error reading width */
-      free(cInfo);
+  /* allocate memory for charOff */
+  cOffset = (unsigned short *) malloc(sizeof(unsigned short) * totalChars);
+  if (bfHeader.version == 2) {
+    fseek(fp, bfHeader2.offset, SEEK_SET);
+    if (fread(cOffset, sizeof(unsigned short), totalChars, fp) < totalChars) {
       fclose(fp);
       return -1;
     }
-    cInfo[i].offset = totalWidth;
-    cInfo[i].width = width;
+  }
+
+  /* allocate memory for charInfo */
+  cInfo = (CharInfo *) malloc(sizeof(CharInfo) * bfHeader.numOfCharacters);
+
+  for (i=0,j=0; i<totalChars; i++) {
+    j = (bfHeader.version == 2) ? cOffset[i] : i;
+    if (j > bfHeader.numOfCharacters) continue;
+    fseek(fp, sizeof(bfHeader) + ((bfHeader.version == 2) ? 
+				  sizeof(bfHeader2):0) + 
+	  (4 * (bfHeader.height+1) * i), SEEK_SET);
+    if (fread(&width, 1, sizeof(width), fp) < 1) {
+      /* error reading width */
+      free(cInfo);
+      free(cOffset);
+      fclose(fp);
+      return -1;
+    }
+    cInfo[j].offset = totalWidth;
+    cInfo[j].width = width;
     totalWidth += width;
   }
 
@@ -1581,28 +1612,35 @@ int vfdlib_registerFont(char *bfFileName, int fontSlot) {
   fBitmap[4] = bfHeader.height & 0xFF;
 
   /* load in the character bitmaps */
-  for (i=0; i<bfHeader.numOfCharacters; i++) {
-    fseek(fp, sizeof(bfHeader) + (((bfHeader.height+1) << 2) * i) + 4,
-	  SEEK_SET);
+  for (i=0, j=0; i<totalChars; i++) {
+    j = (bfHeader.version == 2) ? cOffset[i] : i;
+    if (j > bfHeader.numOfCharacters) continue;
+    fseek(fp, sizeof(bfHeader) + ((bfHeader.version == 2) ?
+				  sizeof(bfHeader2):0) + 
+	  (((bfHeader.height+1) << 2) * i) + 4, SEEK_SET);
     scanLineSkip = 0;
     for (y=0; y<bfHeader.height; y++) {
       if (fread(&scanline, 1, sizeof(scanline), fp) < 1) {
 	/* error reading scanline */
 	free(cInfo);
+	free(cOffset);
 	free(fBitmap);
 	fclose(fp);
 	return -1;
       }
-      for (x=0; x<cInfo[i].width; x++) {
+      for (x=0; x<cInfo[j].width; x++) {
 	/* convert scanline to internal format */
-	*(fBitmap + 5 + scanLineSkip + ((cInfo[i].offset + x) >> 2)) |=
+	*(fBitmap + 5 + scanLineSkip + ((cInfo[j].offset + x) >> 2)) |=
 	  (((unsigned char) scanline & 0x03) <<
-	   (((cInfo[i].offset + x) & 0x03) << 1));
+	   (((cInfo[j].offset + x) & 0x03) << 1));
 	scanline >>= 2;
       }
       scanLineSkip += bitmapScanlineBytes;
     }
   }
+
+  /* Don't need to keep offset table. */
+  free(cOffset);
 
   /* add font to registry */
   g_fontRegistry[fontSlot].cInfo = cInfo;
