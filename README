@@ -1,0 +1,61 @@
+*******************************************************
+vfdlib - a graphics api library for empeg userland apps
+*******************************************************
+
+Version 1 - 29th May 2002
+
+Copyright (C) 2002  Richard Kirkby
+
+Introduction:
+
+  I recocognized a barrier to implementing userland apps on the empeg/riocar
+  as being the lack of custom graphics libraries. I personally would like to
+  see a lot more development, and sought to help myself and others overcome
+  the initial barrier by writing my own set of graphics routines.
+
+  I see a lot of potential for this library in combination with hijack (thanks
+  to mlord) and the efforts of others for a wealth of cool userland apps on the
+  empeg! Now if only someone would automate the installation process of apps
+  then we would really be getting somewhere...
+
+Features:
+
+  * Ability to draw points, lines, rectangles, ellipses, polygons, text and
+    bitmaps.
+
+  * Includes 3 built in fonts to get you started in getting text onto the
+    display.
+
+  * Drawing operations fully clipped to a user definable rectangle. Those of
+    you hungry for more speed can bypass the clipping overhead when careful
+    to ensure drawing operations will not leak outside the display area.
+
+  * Written in C with the empeg in mind, meaning fast, compact, optimized
+    integer routines.
+
+  * Think you can do better? Please do! The code is open source - help to make 
+    it better and share the results with the rest of us.
+
+Copying/Modifying/Distributing:
+
+  The code is released under the GNU GPL.
+  See the file COPYING for more information.
+
+Files:
+
+  README   - this file
+  COPYING  - information about the GPL license
+  vfdlib.h - the header file to include in your apps
+  vfdlib.c - the source file to compile and link with your apps
+
+Feedback:
+
+  Please feel free to send me any suggestions, improvements, bug reports or
+  comments via my email address:  rkirkby (at) cs.waikato.ac.nz
+
+  Even better, join in the discussions on the unofficial empeg bbs:
+  http://empeg.comms.net/
+
+Revisions:
+
+  29/05/2002 v1  - initial release
