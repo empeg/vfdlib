@@ -19,10 +19,8 @@ AC_CONFIG_HEADERS(include/vfdlib/config.h)
 AC_COPYRIGHT([Copyright (C) 2002 Richard Kirkby
 GNU Public License (GPL) Rights pursuant to Version 2, June 1991])
 AC_REVISION([$Id: $])
-AC_CONFIG_AUX_DIR([autoconf])
 AM_INIT_AUTOMAKE([1.6.3 foreign])
-
-AC_CONFIG_MACRO_DIR([autoconf])
+AC_CONFIG_MACRO_DIR([m4])
 
 AM_PROG_LIBTOOL
 
