@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: vfdlib
+Description: a graphics api library for empeg userland apps
+Version: @VERSION@
+Libs: -L${libdir} -lvfd @LDFLAGS@ @LIBS@
+Cflags: -I${includedir}
